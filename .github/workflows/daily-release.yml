@@ -32,7 +32,6 @@ jobs:
           LANG_MAP["da_DK"]="Danish"
           LANG_MAP["de_DE"]="German"
           LANG_MAP["el_GR"]="Greek"
-          LANG_MAP["en_US"]="English"
           LANG_MAP["es_ES"]="Spanish"
           LANG_MAP["fi_FI"]="Finnish"
           LANG_MAP["fr_FR"]="French"
