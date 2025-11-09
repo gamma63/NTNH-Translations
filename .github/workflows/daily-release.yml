@@ -2,8 +2,8 @@ name: Daily Language Packs Release
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Ежедневно в 00:00 UTC
-  workflow_dispatch:     # Ручной запуск через GitHub UI
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -17,16 +17,12 @@ jobs:
         with:
           ref: main
 
-      - name: Set up variables
+      - name: Set release name
         id: vars
-        run: |
-          echo "release_name=NTNH-Translations-$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-          echo "build_dir=build_artifacts" >> $GITHUB_OUTPUT
-
-      - name: Create build directory
-        run: mkdir -p ${{ steps.vars.outputs.build_dir }}
+        run: echo "release_name=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Define language mappings and create ZIPs
+        id: zip
         run: |
           declare -A LANG_MAP
           LANG_MAP["af_ZA"]="Afrikaans"
@@ -60,48 +56,52 @@ jobs:
           LANG_MAP["zh_CN"]="Chinese_Simplified"
           LANG_MAP["zh_TW"]="Chinese_Traditional"
 
-          echo "ZIP_FILES=" >> $GITHUB_ENV
-          for lang_code in */; do
-            lang_code="${lang_code%/}"  # Убираем завершающий /
+          mkdir -p build_artifacts
+          ZIP_LIST=""
 
-            # Пропускаем системные папки и файлы
+          for lang_code in */; do
+            lang_code="${lang_code%/}"
             if [[ "$lang_code" == ".github" || "$lang_code" == "crowdin.yml" ]]; then
               continue
             fi
 
             lang_name="${LANG_MAP[$lang_code]}"
             if [[ -z "$lang_name" ]]; then
-              echo "⚠️ No mapping for language code: $lang_code — skipping"
               continue
             fi
 
             if [ ! -d "$lang_code/config" ]; then
-              echo "⚠️ config/ directory not found in $lang_code — skipping"
               continue
             fi
 
-            echo "✅ Processing $lang_code → $lang_name.zip"
-            zip_path="${{ steps.vars.outputs.build_dir }}/${lang_name}.zip"
-
+            zip_path="build_artifacts/${lang_name}.zip"
             (
               cd "$lang_code"
               zip -r "../$zip_path" config/ -x "*.git*" "*.DS_Store" "__MACOSX/*"
             )
-
-            echo "$zip_path" >> $GITHUB_ENV
+            ZIP_LIST="${ZIP_LIST}${zip_path}"$'\n'
           done
+
+          # Убираем пустые строки
+          ZIP_LIST=$(echo "$ZIP_LIST" | sed '/^\s*$/d')
+          if [ -z "$ZIP_LIST" ]; then
+            echo "zip_files=" >> $GITHUB_OUTPUT
+          else
+            echo "zip_files<<EOF" >> $GITHUB_OUTPUT
+            echo "$ZIP_LIST" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
         shell: bash
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          name: ${{ steps.vars.outputs.release_name }}
-          tag_name: ${{ steps.vars.outputs.release_name }}
+          name: NTNH-Translations-${{ steps.vars.outputs.release_name }}
+          tag_name: NTNH-Translations-${{ steps.vars.outputs.release_name }}
           body: |
             📦 Daily language packs for Minecraft mods  
             🕒 Generated from branch `main` on ${{ github.date }}
-
-            All translations are ready to drop into your Minecraft `config/` folder.
-          files: ${{ env.ZIP_FILES }}
+          files: |
+            ${{ steps.zip.outputs.zip_files }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
