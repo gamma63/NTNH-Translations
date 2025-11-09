@@ -26,9 +26,10 @@ jobs:
       - name: Create build directory
         run: mkdir -p ${{ steps.vars.outputs.build_dir }}
 
-      - name: Define language mappings
+            - name: Define language mappings
         id: langs
         run: |
+          declare -A LANG_MAP
           declare -A LANG_MAP
           LANG_MAP["af_ZA"]="Afrikaans"
           LANG_MAP["ar_SA"]="Arabic"
@@ -60,31 +61,36 @@ jobs:
           LANG_MAP["vi_VN"]="Vietnamese"
           LANG_MAP["zh_CN"]="Chinese_Simplified"
           LANG_MAP["zh_TW"]="Chinese_Traditional"
-          
-          echo "Detected language folders:"
-          for lang_dir in NTNH-Translations/*/; do
-            lang_code=$(basename "$lang_dir")
+
+          echo "ZIP_FILES=" >> $GITHUB_ENV
+          for lang_code in */; do
+            lang_code="${lang_code%/}"  # Убираем слэш в конце
             lang_name="${LANG_MAP[$lang_code]}"
             
+            # Проверяем, есть ли config/ внутри папки
+            if [ ! -d "$lang_code/config" ]; then
+              echo "⚠️ $lang_code/config not found - skipping"
+              continue
+            fi
+            
+            # Проверяем, есть ли маппинг для языка
             if [[ -z "$lang_name" ]]; then
               echo "⚠️ No mapping for $lang_code - skipping"
               continue
             fi
             
-            echo "Processing $lang_code → $lang_name"
+            echo "✅ Processing $lang_code → $lang_name"
+            zip_name="${lang_name}.zip"
+            zip_path="${{ steps.vars.outputs.build_dir }}/$zip_name"
             
             # Создаём ZIP с правильной структурой
-            zip_name="${lang_name}.zip"
             (
-              cd "$lang_dir"
-              zip -r "../../${{ steps.vars.outputs.build_dir }}/$zip_name" config/ -x "*.git*"
+              cd "$lang_code"
+              zip -r "../$zip_path" config/ -x "*.git*" "*.DS_Store*"
             )
-            echo "✅ Created $zip_name"
             
-            # Сохраняем имена файлов для релиза
-            echo "ZIP_FILES<<EOF" >> $GITHUB_ENV
-            echo "${{ steps.vars.outputs.build_dir }}/$zip_name" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
+            # Добавляем в список ассетов
+            echo "$zip_path" >> $GITHUB_ENV
           done
         shell: bash
 
