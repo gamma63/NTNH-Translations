@@ -2,11 +2,11 @@ name: Daily Language Packs Release
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Каждый день в 00:00 UTC
+    - cron: '0 0 * * *'  # Ежедневно в 00:00 UTC
   workflow_dispatch:     # Ручной запуск через GitHub UI
 
 permissions:
-  contents: write  # Для создания релизов
+  contents: write
 
 jobs:
   build-release:
@@ -26,10 +26,8 @@ jobs:
       - name: Create build directory
         run: mkdir -p ${{ steps.vars.outputs.build_dir }}
 
-            - name: Define language mappings
-        id: langs
+      - name: Define language mappings and create ZIPs
         run: |
-          declare -A LANG_MAP
           declare -A LANG_MAP
           LANG_MAP["af_ZA"]="Afrikaans"
           LANG_MAP["ar_SA"]="Arabic"
@@ -64,32 +62,32 @@ jobs:
 
           echo "ZIP_FILES=" >> $GITHUB_ENV
           for lang_code in */; do
-            lang_code="${lang_code%/}"  # Убираем слэш в конце
+            lang_code="${lang_code%/}"  # Убираем завершающий /
+
+            # Пропускаем системные папки и файлы
+            if [[ "$lang_code" == ".github" || "$lang_code" == "crowdin.yml" ]]; then
+              continue
+            fi
+
             lang_name="${LANG_MAP[$lang_code]}"
-            
-            # Проверяем, есть ли config/ внутри папки
-            if [ ! -d "$lang_code/config" ]; then
-              echo "⚠️ $lang_code/config not found - skipping"
-              continue
-            fi
-            
-            # Проверяем, есть ли маппинг для языка
             if [[ -z "$lang_name" ]]; then
-              echo "⚠️ No mapping for $lang_code - skipping"
+              echo "⚠️ No mapping for language code: $lang_code — skipping"
               continue
             fi
-            
-            echo "✅ Processing $lang_code → $lang_name"
-            zip_name="${lang_name}.zip"
-            zip_path="${{ steps.vars.outputs.build_dir }}/$zip_name"
-            
-            # Создаём ZIP с правильной структурой
+
+            if [ ! -d "$lang_code/config" ]; then
+              echo "⚠️ config/ directory not found in $lang_code — skipping"
+              continue
+            fi
+
+            echo "✅ Processing $lang_code → $lang_name.zip"
+            zip_path="${{ steps.vars.outputs.build_dir }}/${lang_name}.zip"
+
             (
               cd "$lang_code"
-              zip -r "../$zip_path" config/ -x "*.git*" "*.DS_Store*"
+              zip -r "../$zip_path" config/ -x "*.git*" "*.DS_Store" "__MACOSX/*"
             )
-            
-            # Добавляем в список ассетов
+
             echo "$zip_path" >> $GITHUB_ENV
           done
         shell: bash
@@ -100,11 +98,10 @@ jobs:
           name: ${{ steps.vars.outputs.release_name }}
           tag_name: ${{ steps.vars.outputs.release_name }}
           body: |
-            Daily language packs for Minecraft mods.
-            Generated from branch `main` on ${{ github.date }}
-            
-            Contains:
-            ${{ env.ZIP_FILES }}
+            📦 Daily language packs for Minecraft mods  
+            🕒 Generated from branch `main` on ${{ github.date }}
+
+            All translations are ready to drop into your Minecraft `config/` folder.
           files: ${{ env.ZIP_FILES }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
