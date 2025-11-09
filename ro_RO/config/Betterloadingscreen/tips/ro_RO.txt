@@ -5,12 +5,12 @@
 #The line below, including the "#" are 77 chars
 #Adventurer's backpack? Did you mean integrated crafting grid, bed and fluid
 #
-Got a question? Join our Discord server: discord.gg/wtNVzeE5QB
-You can bind the quests menu to a key, instead of using the book
+Ai o întrebare? Alătura-te pe serverului nostru la discord: discord.gg/wtNVzeE5QB
+Puțeți lega meniul de questuri la pe tastă, în loc să folosești cartea
 Be sure to check out what you can do with Mouse Tweaks
 Build multiblocks within the same chunk!
 Try the Midnight Theme for the questbook
-Literally flint and steel!
+Literalmente cremene și oțel!
 Adventurer's backpack: integrated crafting grid, bed and fluid storage
 Beware of pollution!
 Found a bug? Report it on GitHub or Discord
